@@ -23,6 +23,7 @@ export function ChatLayout() {
   const [showSaveDialog, setShowSaveDialog] = useState(false);
   const [language, setLanguage] = useState('en-US'); // Default to English
   const [isTtsEnabled, setIsTtsEnabled] = useState(true);
+  const [isSearching, setIsSearching] = useState(false);
   const { toast } = useToast();
 
   useEffect(() => {
@@ -54,9 +55,11 @@ export function ChatLayout() {
       timestamp: new Date().toISOString(),
     };
     setMessages((prev) => [...prev, newMessage]);
+    setIsSearching(true);
 
     // Get AI response from local brain
     const aiResponseData = await localBrainQuery({ query: content });
+    setIsSearching(false);
 
     const aiResponse: Message = {
       id: `msg-${Date.now() + 1}`,
@@ -102,6 +105,7 @@ export function ChatLayout() {
         messages={messages} 
         isTtsEnabled={isTtsEnabled}
         onToggleTts={toggleTts}
+        isSearching={isSearching}
       />
       <ChatInput 
         onSendMessage={handleSendMessage} 
