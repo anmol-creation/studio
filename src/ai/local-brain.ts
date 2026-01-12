@@ -1,5 +1,7 @@
 'use server';
 
+import { saveMemory } from "@/core/memory/memoryEngine";
+
 /**
  * @fileOverview A placeholder for a local AI engine.
  */
@@ -20,14 +22,21 @@ export type LocalBrainOutput = {
  * @returns A mock response.
  */
 export async function query(input: LocalBrainInput): Promise<LocalBrainOutput> {
-  // In the future, this will be replaced with a call to a private AI engine.
-  // For now, it returns a canned response.
+  const { query } = input;
+  if (query.toLowerCase().includes("yaad rakh")) {
+    await saveMemory("Personal_Life", 1, 1, {
+      title: "Current Life Status",
+      created: new Date().toISOString(),
+      updated: new Date().toISOString(),
+      content: [query],
+      importance: "High",
+      ownerApproved: true
+    });
 
-  await new Promise(resolve => setTimeout(resolve, 1000)); // Simulate network delay
+    return { answer: "Ye baat yaad rakh li hai." };
+  }
 
-  return {
-    answer: `This is a mock response to your query: "${input.query}". The real AI is not yet connected.`
-  };
+  return { answer: "Main ready hoon. Tum kya baat karna chahte ho?" };
 }
 
 /**
