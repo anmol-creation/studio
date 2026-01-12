@@ -1,3 +1,5 @@
+import { DocumentData, Timestamp } from "firebase/firestore";
+
 export type User = {
   id: string;
   name: string;
@@ -17,13 +19,16 @@ export type Message = {
   timestamp: string;
 };
 
-export type Memory = {
+export type Memory = DocumentData & {
   id: string;
-  projectId: string;
-  projectName: string;
-  phase: string;
-  level: string;
-  content: string;
-  isLocked: boolean;
-  createdAt: string;
+  projectId?: string;
+  projectName?: string;
+  phase?: string;
+  level?: string;
+  content: string | string[];
+  isLocked?: boolean;
+  ownerApproved?: boolean;
+  importance?: 'Low' | 'Medium' | 'High';
+  created: string | Timestamp;
+  updated: string | Timestamp;
 };
