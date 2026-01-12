@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import type { Message } from '@/lib/types';
 import { initialMessages, users } from '@/lib/data';
 import { ChatMessages } from './chat-messages';
@@ -21,11 +21,31 @@ import { query as localBrainQuery } from '@/ai/local-brain';
 export function ChatLayout() {
   const [messages, setMessages] = useState<Message[]>(initialMessages);
   const [showSaveDialog, setShowSaveDialog] = useState(false);
+  const [language, setLanguage] = useState('en-US'); // Default to English
+  const [isTtsEnabled, setIsTtsEnabled] = useState(true);
   const { toast } = useToast();
 
+  useEffect(() => {
+    // Speak the initial AI message if TTS is on
+    const lastMessage = messages[messages.length - 1];
+    if (lastMessage && lastMessage.author.id === 'ai-1' && isTtsEnabled) {
+      speak(lastMessage.content, language);
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []); // Run only once on mount
 
-  const handleSendMessage = async (content: string) => {
+  const speak = (text: string, lang: string) => {
+    if (typeof window === 'undefined' || !window.speechSynthesis) return;
+    window.speechSynthesis.cancel(); // Stop any previous speech
+    const utterance = new SpeechSynthesisUtterance(text);
+    utterance.lang = lang;
+    window.speechSynthesis.speak(utterance);
+  };
+
+  const handleSendMessage = async (content: string, lang: string) => {
     if (!content.trim()) return;
+
+    setLanguage(lang); // Set language from input
 
     const newMessage: Message = {
       id: `msg-${Date.now()}`,
@@ -45,6 +65,10 @@ export function ChatLayout() {
       timestamp: new Date().toISOString(),
     };
     setMessages((prev) => [...prev, aiResponse]);
+
+    if (isTtsEnabled) {
+        speak(aiResponse.content, lang);
+    }
     
     // Trigger save to memory prompt
     setTimeout(() => setShowSaveDialog(true), 1500);
@@ -59,10 +83,31 @@ export function ChatLayout() {
     });
   }
 
+  const toggleTts = () => {
+    const ttsWasEnabled = isTtsEnabled;
+    setIsTtsEnabled((prev) => !prev);
+    if (!ttsWasEnabled) {
+        const lastMessage = messages[messages.length - 1];
+        if (lastMessage && lastMessage.author.id === 'ai-1') {
+            speak(lastMessage.content, language);
+        }
+    } else {
+        window.speechSynthesis.cancel();
+    }
+  }
+
   return (
     <div className="flex h-[calc(100vh-4rem)] flex-col">
-      <ChatMessages messages={messages} />
-      <ChatInput onSendMessage={handleSendMessage} />
+      <ChatMessages 
+        messages={messages} 
+        isTtsEnabled={isTtsEnabled}
+        onToggleTts={toggleTts}
+      />
+      <ChatInput 
+        onSendMessage={handleSendMessage} 
+        language={language}
+        setLanguage={setLanguage}
+      />
 
       <AlertDialog open={showSaveDialog} onOpenChange={setShowSaveDialog}>
         <AlertDialogContent>
