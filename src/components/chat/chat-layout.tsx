@@ -16,6 +16,7 @@ import {
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
 import { useToast } from '@/hooks/use-toast';
+import { query as localBrainQuery } from '@/ai/local-brain';
 
 export function ChatLayout() {
   const [messages, setMessages] = useState<Message[]>(initialMessages);
@@ -23,7 +24,7 @@ export function ChatLayout() {
   const { toast } = useToast();
 
 
-  const handleSendMessage = (content: string) => {
+  const handleSendMessage = async (content: string) => {
     if (!content.trim()) return;
 
     const newMessage: Message = {
@@ -34,20 +35,19 @@ export function ChatLayout() {
     };
     setMessages((prev) => [...prev, newMessage]);
 
-    // Simulate AI response
-    setTimeout(() => {
-      const aiResponse: Message = {
-        id: `msg-${Date.now() + 1}`,
-        author: users['ai-1'],
-        content: "I've received your message. Let me process that...",
-        timestamp: new Date().toISOString(),
-      };
-      setMessages((prev) => [...prev, aiResponse]);
-      
-      // Trigger save to memory prompt
-      setTimeout(() => setShowSaveDialog(true), 1500);
+    // Get AI response from local brain
+    const aiResponseData = await localBrainQuery({ query: content });
 
-    }, 1000);
+    const aiResponse: Message = {
+      id: `msg-${Date.now() + 1}`,
+      author: users['ai-1'],
+      content: aiResponseData.answer,
+      timestamp: new Date().toISOString(),
+    };
+    setMessages((prev) => [...prev, aiResponse]);
+    
+    // Trigger save to memory prompt
+    setTimeout(() => setShowSaveDialog(true), 1500);
   };
   
   const handleSaveMemory = (save: boolean) => {
