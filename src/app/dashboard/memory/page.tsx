@@ -33,15 +33,35 @@ import {
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
+  DropdownMenuSeparator,
 } from '@/components/ui/dropdown-menu';
 import { useCollection } from '@/firebase/firestore/use-collection';
 import { useUser } from '@/firebase/auth/use-user';
-import { getFirestore, collection, doc, deleteDoc } from 'firebase/firestore';
+import { getFirestore, collection, doc, deleteDoc, updateDoc } from 'firebase/firestore';
 import { useFirestore } from '@/firebase';
-import { MoreHorizontal, Lock, Unlock, Trash2, Edit } from 'lucide-react';
+import { MoreHorizontal, Lock, Unlock, Trash2, Edit, CheckCircle, XCircle } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 import { useToast } from '@/hooks/use-toast';
 import { Skeleton } from '@/components/ui/skeleton';
+import type { Memory } from '@/lib/types';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from '@/components/ui/dialog';
+import { Label } from '@/components/ui/label';
+import { Input } from '@/components/ui/input';
+import { Textarea } from '@/components/ui/textarea';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 
 export default function MemoryPage() {
   const { db } = useFirestore();
@@ -49,24 +69,29 @@ export default function MemoryPage() {
   const [projectId, setProjectId] = useState('Personal_Life'); // Default or from context
   const [isMounted, setIsMounted] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState<string | null>(null);
+  const [editingMemory, setEditingMemory] = useState<Memory | null>(null);
   const { toast } = useToast();
 
   useEffect(() => {
     setIsMounted(true);
   }, []);
 
-  // A more realistic path would involve dynamic project/phase/level selection
   const memoriesQuery = useMemo(() => {
     if (!db) return null;
     return collection(db, `memory_projects/${projectId}/phases/1/levels/1/entries`);
   }, [db, projectId]);
 
-  const { data: memories, loading, error } = useCollection(memoriesQuery);
+  const { data: memories, loading, error } = useCollection<Memory>(memoriesQuery);
+  
+  const getMemoryRef = (memoryId: string) => {
+    if (!db) return null;
+    return doc(db, `memory_projects/${projectId}/phases/1/levels/1/entries`, memoryId);
+  }
 
   const handleDeleteMemory = async () => {
-    if (!showDeleteConfirm || !db) return;
-    const memoryId = showDeleteConfirm;
-    const memoryRef = doc(db, `memory_projects/${projectId}/phases/1/levels/1/entries`, memoryId);
+    if (!showDeleteConfirm) return;
+    const memoryRef = getMemoryRef(showDeleteConfirm);
+    if (!memoryRef) return;
     
     try {
       await deleteDoc(memoryRef);
@@ -86,6 +111,34 @@ export default function MemoryPage() {
     }
   };
 
+  const handleUpdateMemory = async (memoryId: string, updates: Partial<Memory>) => {
+    const memoryRef = getMemoryRef(memoryId);
+    if (!memoryRef) return;
+
+    try {
+        await updateDoc(memoryRef, { ...updates, updated: new Date().toISOString() });
+        toast({
+            title: "Memory Updated",
+            description: "The memory has been successfully updated."
+        });
+    } catch (e) {
+        console.error("Error updating memory:", e);
+        toast({
+            title: "Update Error",
+            description: "Could not update the memory.",
+            variant: "destructive"
+        });
+    }
+  }
+
+  const handleSaveEdit = () => {
+    if (!editingMemory) return;
+    const { id, ...dataToSave } = editingMemory;
+    // Don't save the id field inside the document
+    const { id: docId, ...restData } = dataToSave;
+    handleUpdateMemory(id, restData);
+    setEditingMemory(null);
+  }
 
   if (!isMounted) {
     return null;
@@ -131,6 +184,7 @@ export default function MemoryPage() {
                               <TableHead>Content</TableHead>
                               <TableHead>Project</TableHead>
                               <TableHead>Status</TableHead>
+                              <TableHead>AI Usage</TableHead>
                               <TableHead>Created</TableHead>
                               <TableHead className="text-right">Actions</TableHead>
                           </TableRow>
@@ -142,6 +196,7 @@ export default function MemoryPage() {
                                     <TableCell><Skeleton className="h-5 w-48" /></TableCell>
                                     <TableCell><Skeleton className="h-5 w-24" /></TableCell>
                                     <TableCell><Skeleton className="h-5 w-20" /></TableCell>
+                                    <TableCell><Skeleton className="h-5 w-20" /></TableCell>
                                     <TableCell><Skeleton className="h-5 w-24" /></TableCell>
                                     <TableCell className="text-right"><Skeleton className="h-8 w-8 ml-auto" /></TableCell>
                                 </TableRow>
@@ -149,11 +204,12 @@ export default function MemoryPage() {
                           ) : memories && memories.length > 0 ? (
                               memories.map((memory) => (
                                   <TableRow key={memory.id}>
-                                  <TableCell className="font-medium max-w-sm truncate">
-                                      {Array.isArray(memory.content) ? memory.content.join(' ') : memory.content}
-                                  </TableCell>
-                                  <TableCell>{projectId}</TableCell>
-                                  <TableCell>
+                                    <TableCell className="font-medium max-w-sm truncate">
+                                        <div className="font-bold">{memory.title}</div>
+                                        <div className="text-muted-foreground text-xs">{Array.isArray(memory.content) ? memory.content.join(' ') : memory.content}</div>
+                                    </TableCell>
+                                    <TableCell>{projectId}</TableCell>
+                                    <TableCell>
                                       {memory.isLocked ? (
                                       <Badge variant="secondary" className="text-destructive-foreground bg-destructive hover:bg-destructive/80">
                                           <Lock className="mr-1 h-3 w-3" />
@@ -165,32 +221,51 @@ export default function MemoryPage() {
                                           Unlocked
                                       </Badge>
                                       )}
-                                  </TableCell>
-                                  <TableCell>
-                                      {memory.created ? formatDistanceToNow(new Date(memory.created), { addSuffix: true }) : 'N/A'}
-                                  </TableCell>
-                                  <TableCell className="text-right">
+                                    </TableCell>
+                                    <TableCell>
+                                      {memory.ownerApproved ? (
+                                        <Badge>
+                                          <CheckCircle className="mr-1 h-3 w-3" />
+                                          Enabled
+                                        </Badge>
+                                      ) : (
+                                        <Badge variant="secondary">
+                                          <XCircle className="mr-1 h-3 w-3" />
+                                          Disabled
+                                        </Badge>
+                                      )}
+                                    </TableCell>
+                                    <TableCell>
+                                        {memory.created ? formatDistanceToNow(new Date(memory.created.seconds ? memory.created.toDate() : memory.created), { addSuffix: true }) : 'N/A'}
+                                    </TableCell>
+                                    <TableCell className="text-right">
                                       <DropdownMenu>
-                                      <DropdownMenuTrigger asChild>
-                                          <Button variant="ghost" className="h-8 w-8 p-0">
-                                          <span className="sr-only">Open menu</span>
-                                          <MoreHorizontal className="h-4 w-4" />
-                                          </Button>
-                                      </DropdownMenuTrigger>
-                                      <DropdownMenuContent align="end">
-                                          <DropdownMenuItem><Edit className="mr-2 h-4 w-4"/>Edit</DropdownMenuItem>
-                                          <DropdownMenuItem>{memory.isLocked ? <><Unlock className="mr-2 h-4 w-4"/>Unlock</> : <><Lock className="mr-2 h-4 w-4"/>Lock</>}</DropdownMenuItem>
-                                          <DropdownMenuItem className="text-destructive focus:text-destructive focus:bg-destructive/10" onClick={() => setShowDeleteConfirm(memory.id)}>
-                                            <Trash2 className="mr-2 h-4 w-4"/>Delete
-                                          </DropdownMenuItem>
-                                      </DropdownMenuContent>
+                                        <DropdownMenuTrigger asChild>
+                                            <Button variant="ghost" className="h-8 w-8 p-0">
+                                            <span className="sr-only">Open menu</span>
+                                            <MoreHorizontal className="h-4 w-4" />
+                                            </Button>
+                                        </DropdownMenuTrigger>
+                                        <DropdownMenuContent align="end">
+                                            <DropdownMenuItem onClick={() => setEditingMemory(memory)}><Edit className="mr-2 h-4 w-4"/>Edit</DropdownMenuItem>
+                                            <DropdownMenuItem onClick={() => handleUpdateMemory(memory.id, { isLocked: !memory.isLocked })}>
+                                                {memory.isLocked ? <><Unlock className="mr-2 h-4 w-4"/>Unlock</> : <><Lock className="mr-2 h-4 w-4"/>Lock</>}
+                                            </DropdownMenuItem>
+                                            <DropdownMenuItem onClick={() => handleUpdateMemory(memory.id, { ownerApproved: !memory.ownerApproved })}>
+                                                {memory.ownerApproved ? <><XCircle className="mr-2 h-4 w-4"/>Disable AI</> : <><CheckCircle className="mr-2 h-4 w-4"/>Enable AI</>}
+                                            </DropdownMenuItem>
+                                            <DropdownMenuSeparator />
+                                            <DropdownMenuItem className="text-destructive focus:text-destructive focus:bg-destructive/10" onClick={() => setShowDeleteConfirm(memory.id)}>
+                                                <Trash2 className="mr-2 h-4 w-4"/>Delete
+                                            </DropdownMenuItem>
+                                        </DropdownMenuContent>
                                       </DropdownMenu>
-                                  </TableCell>
+                                    </TableCell>
                                   </TableRow>
                               ))
                           ) : (
                              <TableRow>
-                                <TableCell colSpan={5} className="text-center h-24">No memories found.</TableCell>
+                                <TableCell colSpan={6} className="text-center h-24">No memories found.</TableCell>
                              </TableRow>
                           )}
                           </TableBody>
@@ -226,6 +301,65 @@ export default function MemoryPage() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      <Dialog open={!!editingMemory} onOpenChange={(open) => !open && setEditingMemory(null)}>
+        <DialogContent className="sm:max-w-[425px]">
+          <DialogHeader>
+            <DialogTitle>Edit Memory</DialogTitle>
+            <DialogDescription>
+              Make changes to your memory here. Click save when you're done.
+            </DialogDescription>
+          </DialogHeader>
+          {editingMemory && (
+            <div className="grid gap-4 py-4">
+              <div className="grid grid-cols-4 items-center gap-4">
+                <Label htmlFor="title" className="text-right">
+                  Title
+                </Label>
+                <Input
+                  id="title"
+                  value={editingMemory.title}
+                  onChange={(e) => setEditingMemory({ ...editingMemory, title: e.target.value })}
+                  className="col-span-3"
+                />
+              </div>
+              <div className="grid grid-cols-4 items-center gap-4">
+                <Label htmlFor="content" className="text-right">
+                  Content
+                </Label>
+                <Textarea
+                  id="content"
+                  value={Array.isArray(editingMemory.content) ? editingMemory.content.join('\n') : editingMemory.content}
+                  onChange={(e) => setEditingMemory({ ...editingMemory, content: e.target.value.split('\n') })}
+                  className="col-span-3 min-h-[100px]"
+                />
+              </div>
+               <div className="grid grid-cols-4 items-center gap-4">
+                <Label htmlFor="importance" className="text-right">
+                  Importance
+                </Label>
+                 <Select
+                    value={editingMemory.importance}
+                    onValueChange={(value: 'Low' | 'Medium' | 'High') => setEditingMemory({ ...editingMemory, importance: value })}
+                >
+                    <SelectTrigger className="col-span-3">
+                        <SelectValue placeholder="Select importance" />
+                    </SelectTrigger>
+                    <SelectContent>
+                        <SelectItem value="Low">Low</SelectItem>
+                        <SelectItem value="Medium">Medium</SelectItem>
+                        <SelectItem value="High">High</SelectItem>
+                    </SelectContent>
+                </Select>
+              </div>
+            </div>
+          )}
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setEditingMemory(null)}>Cancel</Button>
+            <Button onClick={handleSaveEdit}>Save changes</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </>
   );
 }

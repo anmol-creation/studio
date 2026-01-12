@@ -21,6 +21,7 @@ export type Message = {
 
 export type Memory = DocumentData & {
   id: string;
+  title: string;
   projectId?: string;
   projectName?: string;
   phase?: string;
