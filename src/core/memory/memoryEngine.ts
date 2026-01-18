@@ -1,14 +1,10 @@
-'use server';
-
 import {
-  getFirestore,
   collection,
   addDoc,
   getDocs,
   query,
+  Firestore,
 } from 'firebase/firestore';
-import { initializeApp, getApps, getApp } from 'firebase/app';
-import firebaseConfig from '@/firebase/config';
 
 type MemoryEntry = {
   title: string;
@@ -19,11 +15,8 @@ type MemoryEntry = {
   ownerApproved: boolean;
 };
 
-// Initialize Firebase app if it hasn't been already
-const app = !getApps().length ? initializeApp(firebaseConfig) : getApp();
-const db = getFirestore(app);
-
 export async function saveMemory(
+  db: Firestore,
   project: string,
   phase: number,
   level: number,
@@ -45,7 +38,7 @@ export async function saveMemory(
   }
 }
 
-export async function getMemory(project: string) {
+export async function getMemory(db: Firestore, project: string) {
   console.log('Fetching memory for:', project);
   // Placeholder implementation for fetching all entries for a project.
   // A more complex query would be needed to traverse all subcollections.

@@ -1,7 +1,6 @@
-'use server';
-
 import { saveMemory } from "@/core/memory/memoryEngine";
 import { searchWeb } from "@/core/internet/searchEngine";
+import { Firestore } from "firebase/firestore";
 
 /**
  * @fileOverview A placeholder for a local AI engine.
@@ -29,14 +28,15 @@ function needsInternet(query: string): boolean {
 
 /**
  * A placeholder function that simulates an AI responding to a user query.
+ * @param db The Firestore instance.
  * @param input The user's query.
  * @returns A mock response.
  */
-export async function query(input: LocalBrainInput): Promise<LocalBrainOutput> {
+export async function query(db: Firestore, input: LocalBrainInput): Promise<LocalBrainOutput> {
   const { query } = input;
 
   if (query.toLowerCase().includes("yaad rakh")) {
-    await saveMemory("Personal_Life", 1, 1, {
+    await saveMemory(db, "Personal_Life", 1, 1, {
       title: "Current Life Status",
       created: new Date().toISOString(),
       updated: new Date().toISOString(),
@@ -49,14 +49,10 @@ export async function query(input: LocalBrainInput): Promise<LocalBrainOutput> {
   }
 
   if (needsInternet(query)) {
-    const searchResults = await searchWeb(query);
-    const context = searchResults.length > 0 
-        ? `Here is some information from the internet: ${searchResults.map(r => r.snippet).join(' ')}`
-        : "I couldn't find anything on the internet about that.";
-    
-    const finalAnswer = `${context}\n\nBased on this, here is my reasoning: [AI reasoning based on internet results for '${query}']`;
-
-    return { answer: finalAnswer, isSearchingInternet: false };
+    return { 
+        answer: "I am sorry, but I cannot search the internet in this static version of the application.", 
+        isSearchingInternet: false 
+    };
   }
 
   return { answer: "Main ready hoon. Tum kya baat karna chahte ho?" };

@@ -17,6 +17,7 @@ import {
 } from '@/components/ui/alert-dialog';
 import { useToast } from '@/hooks/use-toast';
 import { query as localBrainQuery } from '@/ai/local-brain';
+import { useFirestore } from '@/firebase/provider';
 
 export function ChatLayout() {
   const [messages, setMessages] = useState<Message[]>(initialMessages);
@@ -25,6 +26,7 @@ export function ChatLayout() {
   const [isTtsEnabled, setIsTtsEnabled] = useState(true);
   const [isSearching, setIsSearching] = useState(false);
   const { toast } = useToast();
+  const { db } = useFirestore();
 
   useEffect(() => {
     // Speak the initial AI message if TTS is on
@@ -56,9 +58,19 @@ export function ChatLayout() {
     };
     setMessages((prev) => [...prev, newMessage]);
     setIsSearching(true);
+    
+    if (!db) {
+        toast({
+            title: 'Error',
+            description: 'Firestore is not available. Please try again later.',
+            variant: 'destructive',
+        });
+        setIsSearching(false);
+        return;
+    }
 
     // Get AI response from local brain
-    const aiResponseData = await localBrainQuery({ query: content });
+    const aiResponseData = await localBrainQuery(db, { query: content });
     setIsSearching(false);
 
     const aiResponse: Message = {

@@ -6,7 +6,7 @@ import type { Message } from '@/lib/types';
 import { cn } from '@/lib/utils';
 import { users } from '@/lib/data';
 import Image from 'next/image';
-import { Volume2, VolumeX, Search } from 'lucide-react';
+import { Volume2, VolumeX, Bot } from 'lucide-react';
 
 interface ChatMessagesProps {
   messages: Message[];
@@ -60,8 +60,8 @@ export function ChatMessages({ messages, isTtsEnabled, onToggleTts, isSearching 
                     <Image src={users['ai-1'].avatarUrl} alt={users['ai-1'].name} width={40} height={40} className="p-1"/>
                 </Avatar>
                  <div className="bg-card max-w-[75%] rounded-lg p-3 text-sm flex items-center gap-2 text-muted-foreground">
-                    <Search className="h-4 w-4 animate-pulse" />
-                    <span>Searching the internet...</span>
+                    <Bot className="h-4 w-4 animate-pulse" />
+                    <span>Thinking...</span>
                  </div>
              </div>
           )}
