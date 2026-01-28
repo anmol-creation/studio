@@ -23,6 +23,7 @@ interface ChatInputProps {
 // Extend the Window interface to include webkitSpeechRecognition
 declare global {
   interface Window {
+    SpeechRecognition: any;
     webkitSpeechRecognition: any;
   }
 }
