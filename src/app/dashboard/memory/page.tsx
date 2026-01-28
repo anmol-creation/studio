@@ -236,7 +236,7 @@ export default function MemoryPage() {
                                       )}
                                     </TableCell>
                                     <TableCell>
-                                        {memory.created ? formatDistanceToNow(new Date(memory.created.seconds ? memory.created.toDate() : memory.created), { addSuffix: true }) : 'N/A'}
+                                        {memory.created ? formatDistanceToNow(new Date((typeof memory.created === 'object' && 'seconds' in memory.created) ? memory.created.toDate() : memory.created), { addSuffix: true }) : 'N/A'}
                                     </TableCell>
                                     <TableCell className="text-right">
                                       <DropdownMenu>
