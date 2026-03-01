@@ -1,14 +1,1 @@
-'use client'
-
-import { useEffect } from 'react'
-import { useRouter } from 'next/navigation'
-
-export default function Home() {
-  const router = useRouter()
-
-  useEffect(() => {
-    router.replace('/dashboard/chat')
-  }, [])
-
-  return <div>Loading...</div>
-}
+export { default } from './dashboard/chat/page'
